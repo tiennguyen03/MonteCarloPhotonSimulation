@@ -1,0 +1,136 @@
+clc, clearvars, close all;
+
+%Photon Properties
+x = input('Enter the current value of X(mm): '); 
+y = input('Enter the current value of Y(mm): '); 
+z = input('Enter the current value of Z(mm): '); 
+mu_a = input('Enter the current value of muA: '); 
+mu_s = input('Enter the current value of muS: ');
+mu_t = mu_a + mu_s;
+g = input('Enter the current value of g: '); 
+
+%Probabilities
+p_absorbed = mu_a/mu_t;
+p_scattered = mu_s/mu_t;
+
+% Step Configurations
+maxStepCount = 1000;
+stepCount = 0;
+
+% Initialize arrays for photon path
+xPath = zeros(1, maxStepCount);
+yPath = zeros(1, maxStepCount);
+zPath = zeros(1, maxStepCount);
+
+%Tissue Dimensions
+gridSize = input('Enter size of Grid: '); % Number of Grid Elements Per Access
+tissueSize = input('Enter size of the tissue: '); %10mm per size
+absorbedGrid = zeros(gridSize, gridSize, gridSize); % Creating the grid with values initialized as 0
+fluenceGrid = zeros(gridSize, gridSize, gridSize); % Creating the grid with values initialized as 0
+voxelSize = tissueSize / gridSize; % Size of Each Voxel
+fprintf('\n'); % Add an extra newline for separation
+
+
+while true  %photon absorbed or boundary condition breaks it
+    stepCount = stepCount + 1;
+    if(stepCount > maxStepCount)
+        disp('Max Step Count Reached. Terminating.');
+        break;
+    %Absorbed or Scattered?
+
+    %Photon Exists Tissue
+    elseif(z < 0) 
+        disp('Photon exited tissue. Terminating');
+        break;
+
+    % Photon is Absorbed
+    elseif(rand() < p_absorbed)
+        disp('Photon absorbed. Terminating');
+        
+        % Calculate where we will map to the grid
+        voxelX = round((x / tissueSize) * gridSize);
+        voxelY = round((y / tissueSize) * gridSize);
+        voxelZ = round((z / tissueSize) * gridSize);
+
+        % Once absorbed, check if photon is within the tissue
+        if((voxelX > 0 && voxelX <= gridSize)&&(voxelY > 0 && voxelY <= gridSize)&&(voxelZ > 0 && voxelZ <= gridSize))
+            %Map the absorbed energy to the grid
+            absorbedGrid(voxelX, voxelY, voxelZ) = grid(voxelX, voxelY, voxelZ) + mu_a;  
+        end
+        break;
+
+    % Photon is Scattered
+    else 
+        disp('Photon Scattered. Continued travelling.')
+    
+        %Update direction & stepSize for continued travel
+        polarAngle = calcPolarAngle(g);
+        azimuthalAngle = calcAzimuthalAngle();
+        stepSize = calcStepSize(mu_t);
+
+        % Validate step size
+        if stepSize <= 0
+            disp('Invalid step size. Terminating.');
+            break;
+        end
+    
+        % Update Position of Photon
+        deltaX = stepSize*sin(polarAngle)*cos(azimuthalAngle);
+        deltaY = stepSize*sin(polarAngle)*sin(azimuthalAngle);
+        deltaZ = stepSize*cos(polarAngle);
+    
+        % New Position of Photon
+        x = x + deltaX;
+        y = y + deltaY;
+        z = z + deltaZ;
+
+        % Store the current position in the path
+        xPath(stepCount) = x;
+        yPath(stepCount) = y;
+        zPath(stepCount) = z;
+
+        % Displaying the step information
+        fprintf('Step: %d\n', stepCount);
+        fprintf('X: %.3f mm\n', x);
+        fprintf('Y: %.3f mm\n', y);
+        fprintf('Z: %.3f mm\n',z);
+        fprintf('\n'); % Add an extra newline for separation
+
+
+        % Calculate where we will map to the grid
+        voxelX = round((x / tissueSize) * gridSize);
+        voxelY = round((y / tissueSize) * gridSize);
+        voxelZ = round((z / tissueSize) * gridSize);
+
+        % Once absorbed, check if photon is within the tissue
+        if((voxelX > 0 && voxelX <= gridSize)&&(voxelY > 0 && voxelY <= gridSize)&&(voxelZ > 0 && voxelZ <= gridSize))
+            %Map the absorbed energy to the grid
+            fluenceGrid(voxelX, voxelY, voxelZ) = fluenceGrid(voxelX, voxelY, voxelZ) + 1;  
+        end
+    end
+end
+
+%Displays the final position
+fprintf('Final Destination of the Photon:\n');
+fprintf('X: %.3f mm\n', x);
+fprintf('Y: %.3f mm\n', y);
+fprintf('Z: %.3f mm\n', z);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
